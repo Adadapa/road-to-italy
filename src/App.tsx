@@ -1,21 +1,36 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import './App.css'
+import { supabase } from './supabase'
+
 
 interface Person {
+id: number
   name: string
   kilometers: number
 }
 
 function App() {
-  const [people, setPeople] = useState<Person[]>([
-    { name: 'Ada', kilometers: 0 },
-    { name: 'Diego', kilometers: 0 },
-  ])
+  const [people, setPeople] = useState<Person[]>([]) // empty start since we load the data from the database
   const [showOverlay, setShowOverlay] = useState(false)
   const [selectedPersonIndex, setSelectedPersonIndex] = useState<number | null>(null)
   const [inputValue, setInputValue] = useState('')
   const isProcessingRef = useRef(false)
 
+  useEffect(() => { // load the data from the database
+    const loadScores = async () => {
+      const { data, error } = await supabase
+        .from('scores')
+        .select('*')
+        .order('id')
+  
+      if (!error && data) {
+        setPeople(data)
+      }
+    }
+  
+    loadScores()
+  }, []) // the dependnecy array is empty so this only runs at the initial render
+  
   const handleAddClick = (index: number) => {
     setSelectedPersonIndex(index)
     setShowOverlay(true)
@@ -30,7 +45,7 @@ function App() {
     isProcessingRef.current = false
   }
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     e.stopPropagation()
     
@@ -44,18 +59,44 @@ function App() {
     if (!isNaN(value) && value > 0 && selectedPersonIndex !== null) {
       isProcessingRef.current = true
       
+      const selectedPerson = people[selectedPersonIndex]
+      const newKilometers = Math.round((selectedPerson.kilometers + value) * 100) / 100
 
-    setPeople(prev =>
+      // Update local state optimistically
+      setPeople(prev =>
         prev.map((person, i) =>
-        i === selectedPersonIndex
+          i === selectedPersonIndex
             ? {
                 ...person,
-                kilometers: Math.round((person.kilometers + value) * 100) / 100,
-            }
+                kilometers: newKilometers,
+              }
             : person
         )
-    )
-      
+      )
+
+      // Update Supabase table
+      const { error } = await supabase
+        .from('scores')
+        .update({ kilometers: newKilometers })
+        .eq('id', selectedPerson.id)
+
+      if (error) {
+        console.error('Error updating Supabase:', error)
+        // Revert local state on error
+        setPeople(prev =>
+          prev.map((person, i) =>
+            i === selectedPersonIndex
+              ? {
+                  ...person,
+                  kilometers: selectedPerson.kilometers,
+                }
+              : person
+          )
+        )
+        alert('Failed to update. Please try again.')
+        isProcessingRef.current = false
+        return
+      }
       
       handleOverlayClose()
     }
