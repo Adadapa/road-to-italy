@@ -94,6 +94,30 @@
   transform: scale(0.95);
 }
 
+.edit-button {
+  background: #48bb78;
+  border: none;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: white;
+  transition: background 0.2s, transform 0.2s;
+  flex-shrink: 0;
+}
+
+.edit-button:hover {
+  background: #38a169;
+  transform: scale(1.1);
+}
+
+.edit-button:active {
+  transform: scale(0.95);
+}
+
 .overlay {
   position: fixed;
   top: 0;
